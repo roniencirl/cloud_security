@@ -157,26 +157,32 @@ resource "azurerm_linux_virtual_machine" "mediawiki_vm" {
 
 # database
 
-/*
-resource "azurerm_mysql_server" "mediawiki" {
-  name                = "mediawiki-mysqlserver"
+resource "azurerm_mysql_flexible_server" "mediawiki" {
+  name                = "mediawikidb"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  administrator_login          = "dbadmin"
-  administrator_login_password = azurerm_key_vault_secret.mediawikidb.value
+  administrator_login    = "dbadmin"
+  administrator_password = azurerm_key_vault_secret.mediawikidb.value
+  private_dns_zone_id    = azurerm_private_dns_zone.mediawikidb.id
 
-  sku_name   = "B_Gen4_1"
-  storage_mb = 20480
-  version    = "5.7"
+  zone     = 1
+  sku_name = "B_Standard_B1s"
+  storage {
+    auto_grow_enabled = true
+    iops              = 360
+    size_gb           = 20
+  }
+  version = "5.7"
 
-  auto_grow_enabled                 = false
-  backup_retention_days             = 7
-  geo_redundant_backup_enabled      = false
-  infrastructure_encryption_enabled = false # not supported on basic tier
-  public_network_access_enabled     = false
-  ssl_enforcement_enabled           = true
-  ssl_minimal_tls_version_enforced  = "TLS1_2"
+  delegated_subnet_id = azurerm_subnet.default.id
+  #auto_grow_enabled                 = false
+  backup_retention_days        = 7
+  geo_redundant_backup_enabled = false
+  #infrastructure_encryption_enabled = false # not supported on basic tier
+  #public_network_access_enabled = false
+  #ssl_enforcement_enabled           = true
+  #ssl_minimal_tls_version_enforced  = "TLS1_2"
 
   # TODO: Threat detection policy
   # https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/mysql_server
@@ -185,13 +191,79 @@ resource "azurerm_mysql_server" "mediawiki" {
   #}
 
 }
-
+/*
 resource "azurerm_subnet" "mysqldbsubnet" {
   name                 = "mysqldbsubnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.mediawiki_network.name
   address_prefixes     = ["10.1.0.0/24"]
-  service_endpoints = []
+  service_endpoints    = []
+}
+*/
+resource "azurerm_private_dns_zone" "mediawikidb" {
+  name                = "mediawikidb.private.mysql.database.azure.com"
+  resource_group_name = azurerm_resource_group.rg.name
+  tags                = {}
+
+  timeouts {}
 }
 
-*/
+resource "azurerm_private_dns_a_record" "mediawikidb" {
+  name = "mediawikidb"
+  records = [
+    "10.1.0.4",
+  ]
+  resource_group_name = "rg-definite-tetra"
+  tags                = {}
+  ttl                 = 30
+  zone_name           = "mediawikidb.private.mysql.database.azure.com"
+
+  timeouts {}
+}
+resource "azurerm_private_dns_zone_virtual_network_link" "mediawikidb" {
+  name                  = "wroblgetzcs4c"
+  private_dns_zone_name = azurerm_private_dns_zone.mediawikidb.name
+  virtual_network_id    = azurerm_virtual_network.mediawikidb.id
+  resource_group_name   = azurerm_resource_group.rg.name
+}
+
+
+resource "azurerm_virtual_network" "mediawikidb" {
+  # (resource arguments)
+  address_space = [
+    "10.1.0.0/24",
+  ]
+  dns_servers         = []
+  location            = "eastus"
+  name                = "rg-definite-tetra-vnet"
+  resource_group_name = "rg-definite-tetra"
+
+  tags = {}
+
+  timeouts {}
+}
+
+
+resource "azurerm_subnet" "default" {
+  address_prefixes = [
+    "10.1.0.0/24",
+  ]
+  enforce_private_link_endpoint_network_policies = true
+  enforce_private_link_service_network_policies  = false
+  name                                           = "default"
+  resource_group_name                            = "rg-definite-tetra"
+  virtual_network_name                           = "rg-definite-tetra-vnet"
+
+  delegation {
+    name = "dlg-Microsoft.DBforMySQL-flexibleServers"
+
+    service_delegation {
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+      ]
+      name = "Microsoft.DBforMySQL/flexibleServers"
+    }
+  }
+
+  timeouts {}
+}
