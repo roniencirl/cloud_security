@@ -160,4 +160,15 @@ resource "azurerm_application_gateway" "mediawikigateway" {
   }
 
   timeouts {}
+
+  waf_configuration {
+    enabled                  = true
+    firewall_mode            = "Prevention"
+    rule_set_type            = "OWASP"
+    rule_set_version         = "3.2"
+    max_request_body_size_kb = "8"
+    file_upload_limit_mb     = "1"
+
+
+  }
 }
