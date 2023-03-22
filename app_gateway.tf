@@ -110,7 +110,7 @@ resource "azurerm_application_gateway" "mediawikigateway" {
     require_sni                    = false
     ssl_certificate_name           = "mediawiki"
   }
- # manually uploaded
+  # manually uploaded
   identity {
     identity_ids = [
       "/subscriptions/5e9bbbd4-9116-4cff-b4e0-3ea563490470/resourceGroups/rg-definite-tetra/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mediawikikeyvaulttls",
@@ -118,13 +118,19 @@ resource "azurerm_application_gateway" "mediawikigateway" {
     type = "UserAssigned"
   }
 
+  redirect_configuration {
+    name                 = "request-routing-rule-1"
+    redirect_type        = "Permanent"
+    include_path         = true
+    include_query_string = true
+    target_listener_name = "https-listener"
+  }
   request_routing_rule {
-    backend_address_pool_name  = "backend-address-pool"
-    backend_http_settings_name = "backend-http-setting"
-    http_listener_name         = "http-listener"
-    name                       = "request-routing-rule-1"
-    priority                   = 10010
-    rule_type                  = "Basic"
+    http_listener_name          = "http-listener"
+    name                        = "request-routing-rule-1"
+    priority                    = 10010
+    rule_type                   = "Basic"
+    redirect_configuration_name = "request-routing-rule-1"
   }
   request_routing_rule {
     backend_address_pool_name  = "backend-address-pool"
