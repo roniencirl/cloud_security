@@ -27,7 +27,7 @@ resource "azurerm_key_vault" "mediawiki" {
 
 resource "azurerm_key_vault_secret" "mediawikidb" {
   name         = "medaiwikidb"
-  value        = "cld9FZXXJ4rH" # not secure to keep this here as it will be in the state. 
+  value        = "XXXXXXXXXXX" # not secure to keep this here as it will be in the state. 
   key_vault_id = azurerm_key_vault.mediawiki.id
 
 }
